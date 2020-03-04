@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -23,7 +23,7 @@
       <height>571</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="mainLayout" stretch="1,1,1">
+    <layout class="QVBoxLayout" name="mainLayout" stretch="1,0">
      <item>
       <layout class="QGridLayout" name="diceGridLayout">
        <item row="1" column="0">
@@ -213,9 +213,6 @@
         </layout>
        </item>
       </layout>
-     </item>
-     <item>
-      <widget class="QWidget" name="graphWidget" native="true"/>
      </item>
      <item>
       <layout class="QFormLayout" name="statsForm">

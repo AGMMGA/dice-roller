@@ -5,24 +5,40 @@ from functools import partial
 
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtWidgets import QApplication, QSpinBox, QLabel, QRadioButton,\
-    QErrorMessage, QMessageBox
+    QErrorMessage, QMainWindow, QFormLayout, QWidget
 from PySide2.QtCore import QFile, QObject, QRegExp
-from PySide2 import QtGui
+
+from matplotlib.backends.qt_compat import QtCore, QtWidgets 
+from matplotlib.backends.backend_qt5agg import (FigureCanvas, 
+                                                NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.figure import Figure
+
+from plotter import Plotter
 
 class MissingParameter(BaseException):
     pass
 
-class DiceRoller(QObject):
+class MyMainWindow(QMainWindow):
+
+    def __init__(self):
+        super(MyMainWindow, self).__init__()
+        self.form_widget = QFormLayout(self)
+        self.plotter = DiceRoller('ui/MainWindow.ui')
+        self.setCentralWidget(self.plotter)
+
+class DiceRoller(QtWidgets.QWidget):
     
     def __init__(self, ui_file, parent=None):
         super(DiceRoller, self).__init__(parent)
         #load ui file
-        ui_file = QFile('ui/MainWindow.ui')
+        ui_file = QFile(ui_file)
         ui_file.open(QFile.ReadOnly)
         loader = QUiLoader()
         self.window = loader.load(ui_file)
         ui_file.close()
         #startup
+        self.plotter = Plotter(parent=self)
+        self.window.mainLayout.addWidget(self.plotter)
         self.setup_ui()
         self.window.show()
         
@@ -37,6 +53,17 @@ class DiceRoller(QObject):
         self.radio_buttons = self.window.findChildren(QRadioButton, 
                                                       QRegExp('[A-z]*Button'))
         self.connect_items()
+        global debug
+        if debug:
+            self.__run_mini_test()
+        
+    def __run_mini_test(self):
+            from PySide2 import QtTest 
+            from PySide2.QtCore import Qt
+            self.window.d4SpinBox.setValue(4)
+            self.window.d4RadioButton.setChecked(True)
+            self.window.eachAddSpinBox.setValue(0)
+            QtTest.QTest.mouseClick(self.window.runButton, Qt.LeftButton)
     
     def connect_items(self):
         self.window.runButton.clicked.connect(self.run)
@@ -93,9 +120,14 @@ class DiceRoller(QObject):
     def run_simulation(self, n_of_dice, type_of_die, to_add_each, to_add_total,
                        simulate=100000):
         rolls = []
-        for i in range(n_of_dice*simulate):
-            rolls.append((random.randint(1,type_of_die) + to_add_each)
-                        + to_add_total)
+        for i in range(simulate):
+            total = 0
+            for k in range(n_of_dice):
+                total += random.randint(1,type_of_die) + to_add_each
+            rolls.append(total + to_add_total)
+        print(f'Rolled {n_of_dice}d{type_of_die} + {to_add_each}, adding {to_add_total} to the total')
+        print(f'Obtaining an average of {sum(rolls)/100000}')
+        print(f'With minimum {min(rolls)} and maximum {max(rolls)}')
         return rolls
     
     def popup_error(self, msg):
@@ -104,11 +136,13 @@ class DiceRoller(QObject):
         popup.showMessage(msg)
         popup.exec_()
         
-    def plot(self):
-        pass
+    def plot(self, rolls):
+        self.plotter.plot(rolls)
         
 
 if __name__ == "__main__":
+    debug = True
     app = QApplication(sys.argv)
-    window = DiceRoller('ui/MainWindow.ui')
-    sys.exit(app.exec_())
+    window = MyMainWindow()
+#     sys.exit(app.exec_())
+    app.exec_()
