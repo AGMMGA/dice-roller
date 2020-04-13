@@ -1,6 +1,8 @@
 import numpy as np
 import time
 
+from collections import Counter
+
 from matplotlib.backends.qt_compat import QtCore, QtWidgets 
 from matplotlib.backends.backend_qt5agg import (FigureCanvas, 
                                                 NavigationToolbar2QT as NavigationToolbar)
@@ -24,21 +26,17 @@ class Plotter(QtWidgets.QWidget):
         self.layout.addWidget(self.static_canvas)
         
     def plot(self, distribution):
+#         counts = tuple(Counter(distribution))
+#         print(counts)
         if self.called:
             self.static_canvas.figure.clf()
             color='black'
         ax = self.static_canvas.figure.subplots()
-        ax.hist(distribution)
+        plt = ax.hist(distribution)
+#         plt = ax.plot(x,y)
         self.static_canvas.draw()
         self.static_canvas.show()
         self.called = True 
-        
-    def _update_canvas(self):
-        self._dynamic_ax.clear()
-        t = np.linspace(0, 10, 101)
-        # Shift the sinusoid as a function of time.
-        self._dynamic_ax.plot(t, np.sin(t + time.time()))
-        self._dynamic_ax.figure.canvas.draw()
         
 if __name__ == "__main__":
     raise NotImplementedError('Do not run this file as main')

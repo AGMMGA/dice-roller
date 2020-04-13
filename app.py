@@ -1,7 +1,10 @@
 import sys
 import random
 
+from collections import Counter
 from functools import partial
+
+import numpy as np
 
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtWidgets import QApplication, QSpinBox, QLabel, QRadioButton,\
@@ -62,15 +65,23 @@ class DiceRoller(QtWidgets.QWidget):
             from PySide2.QtCore import Qt
             self.window.d4SpinBox.setValue(4)
             self.window.d4RadioButton.setChecked(True)
-            self.window.eachAddSpinBox.setValue(0)
+            self.window.eachAddSpinBox.setValue(1)
+            self.window.totalAddSpinBox.setValue(2)
             QtTest.QTest.mouseClick(self.window.runButton, Qt.LeftButton)
     
     def connect_items(self):
         self.window.runButton.clicked.connect(self.run)
         self.window.resetButton.clicked.connect(self.reset_ui)
         for s in self.dice_spin_boxes:
-            a = partial(self.reset_other_spinboxes, s)
+#             a = partial(self.reset_other_spinboxes, s)
+            a = self.__identify_yourself() #generates a fake call, so that we can identify who is the event sender
             s.valueChanged.connect(self.reset_other_spinboxes)
+        for s in self.radio_buttons:
+            a = self.__identify_yourself()
+            s.clicked.connect(self.reset_spinboxes_after_radio_click)
+        
+    def __identify_yourself(self):
+        return 
     
     def reset_ui(self):
         for s in self.all_spin_boxes:
@@ -81,6 +92,22 @@ class DiceRoller(QtWidgets.QWidget):
             b.setAutoExclusive(False) #otherwise I cannot uncheck and I really want to...
             b.setChecked(False)
             b.setAutoExclusive(True)
+            
+    def reset_spinboxes_after_radio_click(self):
+        '''
+        When a radio button is clicked, it resets all spinboxes to 0
+        except for the spinbox corresponding to the radio button, which is set to 1
+        if its value is zero, or untouched if it has already a value.
+        '''
+        caller = self.sender()
+        sister_spinbox_name = caller.objectName().replace('RadioButton', 'SpinBox')       
+        for s in self.dice_spin_boxes:
+            if s.objectName() == sister_spinbox_name and s.value():
+                continue
+            elif s.objectName() == sister_spinbox_name:
+                s.setValue(1)
+            else:
+                s.setValue(0)
                 
     def reset_other_spinboxes(self):
         caller = self.sender()
@@ -95,7 +122,11 @@ class DiceRoller(QtWidgets.QWidget):
             n_of_dice, type_of_die, to_add_each, to_add_total = (self.get_parameters())
         except MissingParameter:
             return
-        rolls = self.run_simulation(n_of_dice, type_of_die, to_add_each, to_add_total)
+        rolls, mean, mode, median = self.run_simulation(
+            n_of_dice, type_of_die, to_add_each, to_add_total)
+        self.window.meanValue.setText(str(mean))
+        self.window.modeValue.setText(str(mode))
+        self.window.medianValue.setText(str(median))
         self.plot(rolls)
     
     def get_parameters(self):
@@ -117,18 +148,39 @@ class DiceRoller(QtWidgets.QWidget):
         to_add_each = self.window.eachAddSpinBox.value()
         return n_of_dice, type_of_die, to_add_each, to_add_total
     
+    def roll(self, type_of_die, to_add_each):
+        return random.randint(1,type_of_die) + to_add_each
+    
     def run_simulation(self, n_of_dice, type_of_die, to_add_each, to_add_total,
-                       simulate=100000):
-        rolls = []
-        for i in range(simulate):
-            total = 0
-            for k in range(n_of_dice):
-                total += random.randint(1,type_of_die) + to_add_each
-            rolls.append(total + to_add_total)
+                       simulate=1000000):
+        '''
+        Performs <simulate> rolls of: 
+        (<n_of_dice>d<type_of_dice> + <to_add_each>) + <to_add_total>
+        e.g. 
+        (3d6 + 1) + 4: roll a six-faced die 3 times, add 1 to each roll and
+        add 4 to the grand total
+        '''
+        #roll all the dice separately
+        rolls = np.random.randint(1 + to_add_each, #min 
+                                  type_of_die + 1 + to_add_each, #max
+                                  simulate*n_of_dice) #total rolls
+        #create roll groups of n_of_dice
+        rolls = np.reshape(rolls, (simulate, n_of_dice))
+        #sum each roll group
+        rolls = np.sum(rolls, axis=1)
+        #include to_add_total
+        if to_add_total:
+            x = np.array([to_add_total]*simulate)
+            rolls = rolls + x
+        mean = np.mean(rolls)
+        median = np.median(rolls)
+        # mode calculation is in scipy, but adding a dependence for one function is silly
+        counts = Counter(rolls)
+        #Below is a mouthful to get the key with the highest value. Ugly, but I don't care right now
+        mode = list(counts.keys())[list(counts.values()).index(max(counts.values()))]
         print(f'Rolled {n_of_dice}d{type_of_die} + {to_add_each}, adding {to_add_total} to the total')
-        print(f'Obtaining an average of {sum(rolls)/100000}')
-        print(f'With minimum {min(rolls)} and maximum {max(rolls)}')
-        return rolls
+        print(counts)
+        return rolls, mean, mode, median
     
     def popup_error(self, msg):
         popup = QErrorMessage()
@@ -141,7 +193,7 @@ class DiceRoller(QtWidgets.QWidget):
         
 
 if __name__ == "__main__":
-    debug = True
+    debug = 1
     app = QApplication(sys.argv)
     window = MyMainWindow()
 #     sys.exit(app.exec_())
