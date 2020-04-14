@@ -32,8 +32,20 @@ class Plotter(QtWidgets.QWidget):
             self.static_canvas.figure.clf()
             color='black'
         ax = self.static_canvas.figure.subplots()
-        plt = ax.hist(distribution)
-#         plt = ax.plot(x,y)
+        step = (max(distribution) - min(distribution)) // 25 + 1
+        ticks = range(min(distribution), max(distribution)+2, step)
+        counts = Counter(distribution)
+        percents = [(i,j/len(distribution)) 
+                    for i,j in counts.items()]
+        percents.sort(key=lambda x: x[0])
+        percents = np.array(percents)
+#         heights = np.histogram(distribution[], bins=ticks)
+#         percent = [i/sum(heights)*100 for i in heights]
+        ax.bar(percents[:,0], percents[:,1], 
+               align='center')
+        #the ticks are ugly for number higher than 100, 
+        #but axes.set_xticks() has no rotation option...
+        ax.set_xticks(ticks)
         self.static_canvas.draw()
         self.static_canvas.show()
         self.called = True 

@@ -152,7 +152,7 @@ class DiceRoller(QtWidgets.QWidget):
         return random.randint(1,type_of_die) + to_add_each
     
     def run_simulation(self, n_of_dice, type_of_die, to_add_each, to_add_total,
-                       simulate=1000000):
+                       simulate=100000):
         '''
         Performs <simulate> rolls of: 
         (<n_of_dice>d<type_of_dice> + <to_add_each>) + <to_add_total>
@@ -178,8 +178,7 @@ class DiceRoller(QtWidgets.QWidget):
         counts = Counter(rolls)
         #Below is a mouthful to get the key with the highest value. Ugly, but I don't care right now
         mode = list(counts.keys())[list(counts.values()).index(max(counts.values()))]
-        print(f'Rolled {n_of_dice}d{type_of_die} + {to_add_each}, adding {to_add_total} to the total')
-        print(counts)
+#         print(f'Rolled {n_of_dice}d{type_of_die} + {to_add_each}, adding {to_add_total} to the total')
         return rolls, mean, mode, median
     
     def popup_error(self, msg):
